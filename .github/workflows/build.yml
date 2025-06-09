@@ -1,0 +1,144 @@
+name: Build Kernel
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      kernelsu_variant:
+        description: 'KernelSU variants (KernelSU 版本)'
+        required: true
+        type: choice
+        default: 'YCRKSU'
+        options:
+          - 'SukiSU-Ultra'
+          - 'YCRKSU'
+          - 'None'
+      with_susfs:
+        required: true
+        description: 'Is susfs support enabled? (是否启用 susfs 支持?)'
+        type: boolean
+        default: true
+      kpm_enable:
+        description: 'wip: Is KPM support enabled? (是否启用 KPM 支持?)'
+        required: true
+        type: boolean
+        default: true
+      with_lxc:
+        required: true
+        type: boolean
+        description: 'Add lxc support (添加lxc构建支持)'
+        default: true
+jobs:
+  Build:
+    name: Build Kernel
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        codename:
+          - dipper
+          - ursa
+          - polaris
+          - equuleus
+          - perseus
+          - beryllium
+    env:
+      ANYKERNEL3_FILE: "AnyKernel3-miui-${{matrix.codename}}"
+    steps:
+      - name: Set builddate
+        id: generate-builddate
+        run: echo "BUILDDATE=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+      - name:
+        run: |
+          git config --global user.name github-actions[bot]
+          git config --global user.email 41898282+github-actions[bot]@users.noreply.github.com
+      - name: Set swap to 10G
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 10
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: kernel
+      - name: ⭐ Install prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl git ftp lftp wget libarchive-tools ccache python2 python2-dev python3
+          sudo apt-get install -y pngcrush schedtool dpkg-dev liblz4-tool make optipng maven device-tree-compiler
+          sudo apt-get install -y libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc
+          sudo apt-get install -y libxml2-utils libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools lzop flex tree
+          sudo apt-get install -y build-essential bc gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libssl-dev libfl-dev
+          sudo apt-get install -y pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl
+          sudo apt-get install -y zip unzip tar gzip bzip2 rar unrar llvm g++-multilib bison gperf zlib1g-dev automake
+          
+      - name: Get build tools
+        run: |
+          git clone https://github.com/Xiaomi-sdm845-KSU/android-kernel-tools -b clang13 --depth=1 -j$(nproc) clang13
+
+      - name: Add KernelSU
+        working-directory: kernel
+        run: |
+          KSU_VARIANT="${{ github.event.inputs.kernelsu_variant }}"
+          echo "⚙️ Configure KernelSU Variants: $KSU_VARIANT (配置 KernelSU 变体: $KSU_VARIANT)"
+          
+          if [ "${{ github.event.inputs.kernelsu_variant }}" == "true" ]; then
+            git am add-susfs.patch
+            echo -e "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/${{matrix.codename}}_user_defconfig
+            if [ "$KSU_VARIANT" == "SukiSU-Ultra" ]; then
+               BRANCH="susfs-dev"
+            elif [ "$KSU_VARIANT" == "YCRKSU" ]; then
+               BRANCH="susfs-v1.5.5"
+            else
+               echo "not enabled"
+            fi
+          else
+            if [ "$KSU_VARIANT" == "SukiSU-Ultra" ]; then
+               BRANCH="nongki"
+            else
+               BRANCH="main"
+            fi
+          fi
+          
+          if [ "$KSU_VARIANT" == "SukiSU-Ultra" ]; then
+            curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
+          elif [ "$KSU_VARIANT" == "YCRKSU" ]; then
+            curl -LSs "https://raw.githubusercontent.com/luyanci/KernelSU/main/kernel/setup.sh" | bash -s $BRANCH
+          else
+            echo "KernelSU Disabled (KernelSU 已禁用)"
+          fi
+          
+          echo "✅ KernelSU configuration complete (KernelSU 配置完成)"
+      - name: Setup lxc docker
+        if: ${{ github.event.inputs.with_lxc == true }}
+        run: |
+          wget https://github.com/wu17481748/android-lxc-docker/raw/main/LXC-DOCKER-OPEN-CONFIG.sh
+          chmod +x LXC-DOCKER-OPEN-CONFIG.sh
+          ./LXC-DOCKER-OPEN-CONFIG.sh ./arch/arm64/configs/${{matrix.codename}}_user_defconfig -w
+          wget https://github.com/wu17481748/android-lxc-docker/raw/main/cgroup.patch
+          patch -p1 < cgroup.patch
+          if [ -f ./net/netfilter/xt_qtaguid.c ]; then
+            wget https://github.com/wu17481748/android-lxc-docker/raw/main/xt_qtaguid.patch
+            patch -p1 < xt_qtaguid.patch
+          fi
+      - name: Setup KPM
+        if: false
+        # if: github.event.inputs.kpm_enable == true && github.event.inputs.kernelsu_variant == 'SukiSU-Ultra'
+        run: |
+          echo 'WIP'
+      - name: Build Kernel
+        working-directory: kernel
+        run: |
+          export ARGS="CC=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/clang CROSS_COMPILE=$GITHUB_WORKSPACE/clang13/linaro-gcc-4.9/aarch64-linux-gnu/bin/aarch64-linux-gnu- CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/clang13/linaro-gcc-4.9/arm-linux-gnueabi/bin/arm-linux-gnueabi- AR=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/llvm-ar HOSTCC=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/clang HOSTCXX=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/clang++ NM=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/llvm-nm OBJCOPY=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/llvm-objcopy OBJDUMP=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/llvm-objdump STRIP=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/llvm-strip LLVM_AR=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/llvm-ar LLVM_DIS=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/llvm-dis READELF=$GITHUB_WORKSPACE/clang13/clang/host/linux-x86/clang-r428724/bin/llvm-readelf"
+          make O=out ARCH=arm64 $ARGS ${{matrix.codename}}_user_defconfig
+          
+          make O=out ARCH=arm64 $ARGS -j$(nproc)
+      - name: make anykernel3
+        working-directory: kernel
+        run: |
+          cp ./out/arch/arm64/boot/Image.gz-dtb ./anykernel3/
+          cd anykernel3/
+          zip -q -r "${{ env.ANYKERNEL3_FILE }}.zip" *
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.generate-builddate.outputs.BUILDDATE }}
+          files: ./kernel/AnyKernel3/${{ env.ANYKERNEL3_FILE }}.zip
