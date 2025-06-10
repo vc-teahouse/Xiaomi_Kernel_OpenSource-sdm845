@@ -1,0 +1,67 @@
+From b64eadbff00ff04dbea341870eac13d404eb44f3 Mon Sep 17 00:00:00 2001
+From: luyanci <luyancib@qq.com>
+Date: Tue, 10 Jun 2025 20:01:07 +0800
+Subject: [PATCH] Add auto patch kpm
+
+---
+ arch/arm64/Makefile |  1 +
+ patch_kpm.sh        | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)
+ create mode 100755 patch_kpm.sh
+
+diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
+index b79f592b0203..2583bee2c15a 100644
+--- a/arch/arm64/Makefile
++++ b/arch/arm64/Makefile
+@@ -145,6 +145,7 @@ boot := arch/arm64/boot
+ 
+ Image: vmlinux
+ 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
++	$(Q)bash $(srctree)/patch_kpm.sh $(boot)/$@
+ 
+ Image.%: Image
+ 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+diff --git a/patch_kpm.sh b/patch_kpm.sh
+new file mode 100755
+index 000000000000..8f3ee4e86272
+--- /dev/null
++++ b/patch_kpm.sh
+@@ -0,0 +1,35 @@
++#!/usr/bin/bash
++
++SELF_DIR=$(realpath $(dirname $0))
++
++if ! [ -f "$SELF_DIR/patch_linux" ]; then
++    echo "patch_linux not found! abort!"
++    exit 1
++fi
++
++cp "$SELF_DIR/patch_linux" .
++chmod +x ./patch_linux
++
++if ! [ -f "$1" ]; then
++    echo "no input! abort!"
++    exit 1
++fi
++
++FILENAME=$(basename "$1")
++if [ "$FILENAME" = "Image" ]; then
++    mv $1 ./Image
++else
++    echo "wrong file! expected 'Image' but got '$FILENAME'. abort!"
++    exit 1
++fi
++
++./patch_linux
++
++if ! [ -f "oImage" ]; then
++    echo "patch failed!"
++    exit 1
++fi
++
++mv ./oImage $1
++
++echo "KPM patch done"
+-- 
+2.39.5
+
