@@ -109,22 +109,29 @@ jobs:
           
           echo "✅ KernelSU configuration complete (KernelSU 配置完成)"
       - name: Setup lxc docker
-        if: github.event.inputs.with_lxc == "true" 
+        working-directory: kernel
+        if: ${{github.event.inputs.with_lxc == 'true' }}
         run: |
           wget https://github.com/wu17481748/android-lxc-docker/raw/main/LXC-DOCKER-OPEN-CONFIG.sh
           chmod +x LXC-DOCKER-OPEN-CONFIG.sh
           ./LXC-DOCKER-OPEN-CONFIG.sh ./arch/arm64/configs/${{matrix.codename}}_user_defconfig -w
-          wget https://github.com/wu17481748/android-lxc-docker/raw/main/cgroup.patch
-          patch -p1 < cgroup.patch
+          if [ -f ./kernel/cgroup/cgroup.c ]; then
+            wget https://github.com/wu17481748/android-lxc-docker/raw/main/cgroup.patch
+            patch -p1 < cgroup.patch
+          fi
           if [ -f ./net/netfilter/xt_qtaguid.c ]; then
             wget https://github.com/wu17481748/android-lxc-docker/raw/main/xt_qtaguid.patch
             patch -p1 < xt_qtaguid.patch
           fi
       - name: Setup KPM
-        if: false
-        # if: github.event.inputs.kpm_enable == "true" && github.event.inputs.kernelsu_variant == 'SukiSU-Ultra'
+        #if: false
+        working-directory: kernel
+        if: ${{github.event.inputs.kpm_enable == 'true' && github.event.inputs.kernelsu_variant == 'SukiSU-Ultra'}}
         run: |
-          echo 'WIP'
+          git am auto-kpm.patch
+          wget https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.11.4/patch_linux
+          chmod +x patch_linux
+          chmod +x patch_kpm.sh
       - name: Build Kernel
         working-directory: kernel
         run: |
