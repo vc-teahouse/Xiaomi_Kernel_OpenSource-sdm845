@@ -1,6 +1,5 @@
 name: Build Kernel
 on:
-  push:
   workflow_dispatch:
     inputs:
       kernelsu_variant:
@@ -80,7 +79,7 @@ jobs:
           KSU_VARIANT="${{ github.event.inputs.kernelsu_variant }}"
           echo "⚙️ Configure KernelSU Variants: $KSU_VARIANT (配置 KernelSU 变体: $KSU_VARIANT)"
           
-          if [ "${{ github.event.inputs.kernelsu_variant }}" == "true" ]; then
+          if [ "${{ github.event.inputs.with_susfs }}" == "true" ]; then
             git am add-susfs.patch
             echo -e "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/${{matrix.codename}}_user_defconfig
             if [ "$KSU_VARIANT" == "SukiSU-Ultra" ]; then
@@ -104,11 +103,13 @@ jobs:
             curl -LSs "https://raw.githubusercontent.com/luyanci/KernelSU/main/kernel/setup.sh" | bash -s $BRANCH
           else
             echo "KernelSU Disabled (KernelSU 已禁用)"
+            git revert --no-edit b20dcd9 97537e4 16ba835
+            sed -i
           fi
           
           echo "✅ KernelSU configuration complete (KernelSU 配置完成)"
       - name: Setup lxc docker
-        if: ${{ github.event.inputs.with_lxc == true }}
+        if: github.event.inputs.with_lxc == "true" 
         run: |
           wget https://github.com/wu17481748/android-lxc-docker/raw/main/LXC-DOCKER-OPEN-CONFIG.sh
           chmod +x LXC-DOCKER-OPEN-CONFIG.sh
@@ -121,7 +122,7 @@ jobs:
           fi
       - name: Setup KPM
         if: false
-        # if: github.event.inputs.kpm_enable == true && github.event.inputs.kernelsu_variant == 'SukiSU-Ultra'
+        # if: github.event.inputs.kpm_enable == "true" && github.event.inputs.kernelsu_variant == 'SukiSU-Ultra'
         run: |
           echo 'WIP'
       - name: Build Kernel
@@ -140,5 +141,5 @@ jobs:
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.generate-builddate.outputs.BUILDDATE }}
+          tag_name: ${{ steps.generate-builddate.outputs.BUILDDATE }}.${{github.run_number}}
           files: ./kernel/AnyKernel3/${{ env.ANYKERNEL3_FILE }}.zip
