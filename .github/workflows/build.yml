@@ -132,6 +132,7 @@ jobs:
           wget https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.11.4/patch_linux
           chmod +x patch_linux
           chmod +x patch_kpm.sh
+          echo -e "CONFIG_KPM=y" >> arch/arm64/configs/${{matrix.codename}}_user_defconfig
       - name: Build Kernel
         working-directory: kernel
         run: |
