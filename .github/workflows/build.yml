@@ -150,4 +150,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.generate-builddate.outputs.BUILDDATE }}.${{github.run_number}}
-          files: ./kernel/AnyKernel3/${{ env.ANYKERNEL3_FILE }}.zip
+          files: ./kernel/anykernel3/${{ env.ANYKERNEL3_FILE }}.zip
