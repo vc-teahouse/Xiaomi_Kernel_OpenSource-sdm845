@@ -83,7 +83,7 @@ jobs:
             git am add-susfs.patch
             echo -e "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/${{matrix.codename}}_user_defconfig
             if [ "$KSU_VARIANT" == "SukiSU-Ultra" ]; then
-               BRANCH="susfs-dev"
+               BRANCH="susfs-1.5.7"
             elif [ "$KSU_VARIANT" == "YCRKSU" ]; then
                BRANCH="susfs-v1.5.5"
             else
