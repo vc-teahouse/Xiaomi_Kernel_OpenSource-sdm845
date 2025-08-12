@@ -25,7 +25,7 @@ on:
         required: true
         type: boolean
         description: 'Add lxc support (添加lxc构建支持)'
-        default: true
+        default: false
 jobs:
   Build:
     name: Build Kernel
@@ -83,7 +83,8 @@ jobs:
             git am add-susfs.patch
             echo -e "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/${{matrix.codename}}_user_defconfig
             if [ "$KSU_VARIANT" == "SukiSU-Ultra" ]; then
-               BRANCH="susfs-1.5.7"
+               # susfs-1.5.7
+               BRANCH="1fe5bd1"
             elif [ "$KSU_VARIANT" == "YCRKSU" ]; then
                BRANCH="susfs-v1.5.5"
             else
