@@ -84,7 +84,7 @@ jobs:
             echo -e "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/${{matrix.codename}}_user_defconfig
             if [ "$KSU_VARIANT" == "SukiSU-Ultra" ]; then
                # susfs-1.5.7
-               BRANCH="1fe5bd1"
+               BRANCH="susfs-legacy"
             elif [ "$KSU_VARIANT" == "YCRKSU" ]; then
                BRANCH="susfs-v1.5.5"
             else
@@ -99,7 +99,7 @@ jobs:
           fi
           
           if [ "$KSU_VARIANT" == "SukiSU-Ultra" ]; then
-            curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
+            curl -LSs "https://raw.githubusercontent.com/vc-teahouse/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
           elif [ "$KSU_VARIANT" == "YCRKSU" ]; then
             curl -LSs "https://raw.githubusercontent.com/luyanci/KernelSU/main/kernel/setup.sh" | bash -s $BRANCH
           else
