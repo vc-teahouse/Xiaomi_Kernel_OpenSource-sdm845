@@ -99,7 +99,7 @@ jobs:
           fi
           
           if [ "$KSU_VARIANT" == "SukiSU-Ultra" ]; then
-            curl -LSs "https://raw.githubusercontent.com/vc-teahouse/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
+            curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
           elif [ "$KSU_VARIANT" == "YCRKSU" ]; then
             curl -LSs "https://raw.githubusercontent.com/luyanci/KernelSU/main/kernel/setup.sh" | bash -s $BRANCH
           else
